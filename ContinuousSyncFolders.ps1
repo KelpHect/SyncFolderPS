@@ -9,10 +9,14 @@ function Log-Message {
     param (
         [string]$Message
     )
+    # Get the current timestamp
+    $timestamp = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
+    $formattedMessage = "[$timestamp] $Message"
+
     # Log the message to the console
-    Write-Output $Message
+    Write-Output $formattedMessage
     # Log the message to the log file with a timestamp
-    Add-Content -Path $LogFile -Value ("[$(Get-Date)] $Message")
+    Add-Content -Path $LogFile -Value $formattedMessage
 }
 
 function Sync-Folders {
@@ -95,7 +99,14 @@ if (-not $ReplicaFolder) {
     exit 1
 }
 
-if (-not $LogFile) {
+# Check if LogFile path directory exists; if not, create it
+if ($LogFile) {
+    $logDirectory = Split-Path -Path $LogFile -Parent
+    if (-not (Test-Path -Path $logDirectory)) {
+        New-Item -ItemType Directory -Path $logDirectory -Force
+        Write-Warning "Log file directory '$logDirectory' did not exist and has been created."
+    }
+} else {
     $scriptPath = $PSScriptRoot
     $LogFile = Join-Path -Path $scriptPath -ChildPath "SyncLog.log"
     Write-Warning "Log file path is not provided. Logging to default location: $LogFile"
@@ -114,14 +125,14 @@ while ($true) {
     try {
         # Check if the Source folder is missing and exit if necessary
         if (-not (Test-Path -Path $SourceFolder)) {
-            Log-Message "Source folder '$SourceFolder' was not found, it was either moved or deleted. Exiting script."
+            Log-Message "Source folder '$SourceFolder' was removed. Exiting script."
             exit 1
         }
 
         # Check if the Replica folder is missing and recreate if necessary
         if (-not (Test-Path -Path $ReplicaFolder)) {
             New-Item -ItemType Directory -Path $ReplicaFolder
-            Log-Message "Replica folder '$ReplicaFolder' was not found and has been recreated."
+            Log-Message "Replica folder '$ReplicaFolder' was removed and has been recreated."
         }
 
         # Perform synchronization
